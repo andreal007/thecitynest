@@ -8,6 +8,8 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;0,600;1,300;1,400;1,500&family=Lato:wght@300;400;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
 <style>
   :root{
     --gold:#B8923E;
@@ -195,6 +197,18 @@
   .map-tabs button.active{background:var(--gold);border-color:var(--gold);color:var(--offwhite);}
   .map-frame{width:100%;height:440px;border:0.5px solid var(--rule);display:block;background:var(--gold-pale);}
   @media(max-width:700px){.map-frame{height:360px;}}
+  .home-pin{
+    width:18px;height:18px;border-radius:50%;
+    background:var(--gold);border:2.5px solid #fff;
+    box-shadow:0 0 0 2px var(--gold), 0 2px 8px rgba(44,44,44,.4);
+  }
+  .leaflet-tooltip.home-tip{
+    font-family:var(--sans);font-size:10px;font-weight:700;
+    letter-spacing:0.14em;text-transform:uppercase;
+    color:var(--charcoal);border:0.5px solid var(--gold);
+    background:var(--offwhite);
+  }
+  .leaflet-popup-content{font-family:var(--sans);font-size:13px;}
 
   /* ── Rent / contact (charcoal) ──────── */
   .rent{
@@ -417,10 +431,10 @@
         <button data-cat="shop" data-i="map_shop"></button>
         <button data-cat="grocery" data-i="map_grocery"></button>
         <button data-cat="school" data-i="map_school"></button>
+        <button data-cat="leisure" data-i="map_leisure"></button>
         <button data-cat="transit" data-i="map_transit"></button>
       </div>
-      <iframe id="mapFrame" class="map-frame" loading="lazy" allowfullscreen
-              referrerpolicy="no-referrer-when-downgrade" title="Map"></iframe>
+      <div id="mapCanvas" class="map-frame" role="application" aria-label="Neighbourhood map"></div>
     </div>
   </section>
 
@@ -470,15 +484,15 @@ const T = {
     loc_p: "Die Wohnung befindet sich im Zürcher Kreis 3 und bietet eine hervorragende Anbindung an die Innenstadt — kombiniert mit den Vorteilen eines angenehmen Wohnquartiers. Einkaufsmöglichkeiten, öffentliche Verkehrsmittel, Schulen sowie Naherholungsgebiete befinden sich in unmittelbarer Nähe.",
     loc_panel_h: "In der Nähe",
     loc_list: [
-      ["Öffentlicher Verkehr", "Tram- und Bushaltestellen in Gehdistanz"],
+      ["Öffentlicher Verkehr", "Tram-, Bus- und Bahnstationen in 3 Gehminuten"],
       ["Einkaufen", "Läden und Einkaufsmöglichkeiten im Quartier"],
       ["Schulen", "Schulen in unmittelbarer Nähe"],
-      ["Naherholung", "Grünflächen und Erholungsgebiete vor der Tür"],
+      ["Naherholung", "Allmend Brunau, Bäder, Fitness und Tennis in der Nähe"],
       ["Stadtzentrum", "Schnelle Verbindung in die Zürcher Innenstadt"]
     ],
     ph_bath: "Badezimmer", ph_balcony: "Balkon (16 m²)",
     map_all: "Überblick", map_shop: "Einkaufszentren", map_grocery: "Lebensmittel",
-    map_school: "Schulen", map_transit: "ÖV-Haltestellen",
+    map_school: "Schulen", map_leisure: "Naherholung", map_transit: "ÖV-Haltestellen",
     rent_eyebrow: "Miete & Verfügbarkeit", rent_line: "Auf Anfrage",
     rent_terms: "Das City Nest steht für möblierte mittel- bis langfristige Vermietungen zur Verfügung. Mietpreis, Verfügbarkeit und Mietdauer gerne auf Anfrage.",
     cta: "Besichtigung anfragen"
@@ -514,15 +528,15 @@ const T = {
     loc_p: "Located in Zürich's Kreis 3, the apartment offers excellent access to the city centre while benefiting from a pleasant residential neighbourhood — with shops, public transport, schools and recreational areas nearby.",
     loc_panel_h: "Nearby",
     loc_list: [
-      ["Public transport", "Tram and bus stops within walking distance"],
+      ["Public transport", "Tram, bus and train stops within a 3-minute walk"],
       ["Shopping", "Shops and everyday amenities in the neighbourhood"],
       ["Schools", "Schools in the immediate vicinity"],
-      ["Recreation", "Green spaces and recreational areas at the doorstep"],
+      ["Recreation", "Allmend Brunau, pools, gym and tennis close by"],
       ["City centre", "Quick connection to central Zürich"]
     ],
     ph_bath: "Bathroom", ph_balcony: "Balcony (16 m²)",
     map_all: "Overview", map_shop: "Shopping centres", map_grocery: "Grocery stores",
-    map_school: "Schools", map_transit: "Public transport",
+    map_school: "Schools", map_leisure: "Recreation", map_transit: "Public transport",
     rent_eyebrow: "Rent & Availability", rent_line: "On request",
     rent_terms: "The City Nest is available for furnished medium- to long-term rental. Rent, availability and rental duration are available on request.",
     cta: "Request a Viewing"
@@ -558,15 +572,15 @@ const T = {
     loc_p: "Situé dans le Kreis 3 de Zurich, l'appartement offre un excellent accès au centre-ville tout en profitant des avantages d'un quartier résidentiel agréable — commerces, transports publics, écoles et espaces verts se trouvent à proximité immédiate.",
     loc_panel_h: "À proximité",
     loc_list: [
-      ["Transports publics", "Arrêts de tram et de bus à distance de marche"],
+      ["Transports publics", "Tram, bus et train à 3 minutes à pied"],
       ["Commerces", "Magasins et commodités dans le quartier"],
       ["Écoles", "Écoles à proximité immédiate"],
-      ["Détente", "Espaces verts et zones de loisirs à deux pas"],
+      ["Détente", "Allmend Brunau, piscines, fitness et tennis à proximité"],
       ["Centre-ville", "Liaison rapide avec le centre de Zurich"]
     ],
     ph_bath: "Salle de bain", ph_balcony: "Balcon (16 m²)",
     map_all: "Vue d'ensemble", map_shop: "Centres commerciaux", map_grocery: "Supermarchés",
-    map_school: "Écoles", map_transit: "Transports publics",
+    map_school: "Écoles", map_leisure: "Loisirs", map_transit: "Transports publics",
     rent_eyebrow: "Loyer & disponibilité", rent_line: "Sur demande",
     rent_terms: "The City Nest est disponible pour une location meublée de moyenne à longue durée. Loyer, disponibilité et durée du bail sur demande.",
     cta: "Demander une visite"
@@ -602,15 +616,15 @@ const T = {
     loc_p: "Situado en el Kreis 3 de Zúrich, el apartamento ofrece un excelente acceso al centro de la ciudad, combinado con las ventajas de un agradable barrio residencial — con comercios, transporte público, colegios y zonas verdes en las inmediaciones.",
     loc_panel_h: "En los alrededores",
     loc_list: [
-      ["Transporte público", "Paradas de tranvía y autobús a poca distancia a pie"],
+      ["Transporte público", "Tranvía, autobús y tren a 3 minutos a pie"],
       ["Compras", "Tiendas y servicios en el barrio"],
       ["Colegios", "Colegios en las inmediaciones"],
-      ["Ocio", "Zonas verdes y de recreo a un paso"],
+      ["Ocio", "Allmend Brunau, piscinas, gimnasio y tenis cerca"],
       ["Centro", "Conexión rápida con el centro de Zúrich"]
     ],
     ph_bath: "Baño", ph_balcony: "Balcón (16 m²)",
     map_all: "Vista general", map_shop: "Centros comerciales", map_grocery: "Supermercados",
-    map_school: "Colegios", map_transit: "Transporte público",
+    map_school: "Colegios", map_leisure: "Ocio", map_transit: "Transporte público",
     rent_eyebrow: "Alquiler y disponibilidad", rent_line: "A consultar",
     rent_terms: "The City Nest está disponible para alquiler amueblado de media a larga duración. Precio, disponibilidad y duración del contrato a consultar.",
     cta: "Solicitar una visita"
@@ -646,15 +660,15 @@ const T = {
     loc_p: "Situato nel Kreis 3 di Zurigo, l'appartamento offre un eccellente collegamento con il centro città, unito ai vantaggi di un piacevole quartiere residenziale — con negozi, trasporti pubblici, scuole e aree verdi nelle immediate vicinanze.",
     loc_panel_h: "Nelle vicinanze",
     loc_list: [
-      ["Trasporti pubblici", "Fermate di tram e autobus raggiungibili a piedi"],
+      ["Trasporti pubblici", "Tram, autobus e treno a 3 minuti a piedi"],
       ["Negozi", "Negozi e servizi nel quartiere"],
       ["Scuole", "Scuole nelle immediate vicinanze"],
-      ["Tempo libero", "Aree verdi e spazi ricreativi a due passi"],
+      ["Tempo libero", "Allmend Brunau, piscine, palestra e tennis vicini"],
       ["Centro città", "Collegamento rapido con il centro di Zurigo"]
     ],
     ph_bath: "Bagno", ph_balcony: "Balcone (16 m²)",
     map_all: "Panoramica", map_shop: "Centri commerciali", map_grocery: "Supermercati",
-    map_school: "Scuole", map_transit: "Trasporti pubblici",
+    map_school: "Scuole", map_leisure: "Tempo libero", map_transit: "Trasporti pubblici",
     rent_eyebrow: "Canone e disponibilità", rent_line: "Su richiesta",
     rent_terms: "The City Nest è disponibile per locazioni ammobiliate di media e lunga durata. Canone, disponibilità e durata del contratto su richiesta.",
     cta: "Richiedere una visita"
@@ -688,23 +702,89 @@ function setLang(lang){
 document.querySelectorAll('.lang-switch button').forEach(b=>
   b.addEventListener('click', ()=> setLang(b.dataset.lang)));
 
-// ── Interactive neighbourhood map (Google embed, no API key) ──
+// ── Interactive neighbourhood map (Leaflet + OpenStreetMap, no API key) ──
 let curLang = 'de', curCat = 'all';
-const MAPQ = {
-  all:     ["Rüdigerstrasse, Zürich", 15],
-  shop:    ["Einkaufszentrum near Rüdigerstrasse Zürich", 14],
-  grocery: ["Supermarkt near Rüdigerstrasse Zürich", 15],
-  school:  ["Schule near Rüdigerstrasse Zürich", 15],
-  transit: ["Haltestelle near Rüdigerstrasse Zürich", 15]
+const HOME = [47.3607, 8.5215];   // Rüdigerstrasse (street-level, not the exact building)
+const POI = {
+  shop: [
+    ["Sihlcity", 47.35749, 8.52318],
+    ["Brunaupark", 47.35810, 8.51785],
+    ["Wiediker Märt", 47.37028, 8.50857]
+  ],
+  grocery: [
+    ["Coop Sihlcity", 47.35745, 8.52295],
+    ["Coop Manesseplatz", 47.36487, 8.52101],
+    ["Migros Enge", 47.36407, 8.53094],
+    ["Lidl", 47.36177, 8.51493],
+    ["Denner Brunaupark", 47.35818, 8.51797]
+  ],
+  school: [
+    ["Schule Aegerten", 47.36847, 8.52278],
+    ["Schule Rebhügel", 47.36580, 8.51731],
+    ["Kantonsschule Wiedikon", 47.36921, 8.51550],
+    ["Kantonsschulen Freudenberg & Enge", 47.36540, 8.52825],
+    ["Wings School", 47.36249, 8.51936],
+    ["Little Star Day School", 47.35655, 8.52375],
+    ["Kindergarten Waffenplatzstrasse", 47.35743, 8.52680],
+    ["Kindergarten Laubegg", 47.35894, 8.51591]
+  ],
+  leisure: [
+    ["Allmend Brunau", 47.35303, 8.52090],
+    ["Sihlhölzli", 47.36699, 8.52399],
+    ["Hallenbad City", 47.37209, 8.53287],
+    ["Freibad Heuried", 47.36708, 8.50522],
+    ["Fitnesspark Sihlcity", 47.35778, 8.52359],
+    ["Tennisplätze Albisgüetli", 47.35270, 8.50900]
+  ],
+  transit: [
+    ["Manesseplatz", 47.36575, 8.52185],
+    ["Waffenplatzstrasse · Tram", 47.36096, 8.52491],
+    ["Sihlcity Nord · Tram", 47.35992, 8.52281],
+    ["Saalsporthalle · Tram", 47.35768, 8.52076],
+    ["Laubegg · Tram", 47.35860, 8.51774],
+    ["Bahnhof Giesshübel · SZU", 47.36261, 8.52201],
+    ["Bahnhof Binz · SZU", 47.36285, 8.51809],
+    ["Bahnhof Enge · S-Bahn", 47.36418, 8.53076],
+    ["Sihlcity · Bus", 47.35824, 8.52318]
+  ]
 };
+const CATCOLOR = { shop:'#B8923E', grocery:'#A89880', school:'#B89090', leisure:'#8A9E8A', transit:'#7A8B8B' };
+let map = null, layers = {};
+
+function initMap(){
+  if (typeof L === 'undefined') return;   // Leaflet blocked (e.g. sandboxed preview)
+  map = L.map('mapCanvas', { scrollWheelZoom:false, zoomSnap:0.5 })
+         .setView([47.3620, 8.5190], 14);     // fixed frame — tabs never move it
+  L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    maxZoom: 19,
+    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+  }).addTo(map);
+
+  // Permanent City Nest marker, visible on every tab
+  L.marker(HOME, { icon: L.divIcon({ className:'', html:'<div class="home-pin"></div>',
+                                     iconSize:[18,18], iconAnchor:[9,9] }), zIndexOffset:1000 })
+   .addTo(map)
+   .bindTooltip('The City Nest', { permanent:true, direction:'top', offset:[0,-12], className:'home-tip' });
+
+  for (const cat in POI){
+    layers[cat] = L.layerGroup(POI[cat].map(([name, lat, lon]) =>
+      L.circleMarker([lat, lon], {
+        radius:7, fillColor:CATCOLOR[cat], fillOpacity:0.95,
+        color:'#fff', weight:1.5
+      }).bindPopup(name)));
+  }
+}
+
 function setMap(){
-  const [q, z] = MAPQ[curCat];
-  document.getElementById('mapFrame').src =
-    'https://maps.google.com/maps?q=' + encodeURIComponent(q) +
-    '&z=' + z + '&hl=' + curLang + '&output=embed';
   document.querySelectorAll('.map-tabs button').forEach(b =>
     b.classList.toggle('active', b.dataset.cat === curCat));
+  if (!map) return;
+  for (const cat in layers){
+    if (curCat === 'all' || curCat === cat) layers[cat].addTo(map);
+    else map.removeLayer(layers[cat]);
+  }
 }
+initMap();
 document.querySelectorAll('.map-tabs button').forEach(b =>
   b.addEventListener('click', () => { curCat = b.dataset.cat; setMap(); }));
 
